@@ -18,13 +18,18 @@ Ikuti langkah-langkah berikut di terminal:
     ```
 2.  **Jalankan Migrasi Database**:
     ```bash
-    docker compose exec web python manage.py migrate
+    docker compose exec app python manage.py migrate
     ```
 3.  **Buat Akun Administrator**:
     ```bash
-    docker compose exec web python manage.py createsuperuser
+    docker compose exec app python manage.py createsuperuser
     ```
-4.  **Akses Aplikasi**:
+4.  **Seed Data**:
+    ```bash
+    docker-compose exec app python manage.py seed_data
+    ```
+
+5.  **Akses Aplikasi**:
     - **Web App**: [http://localhost:8000](http://localhost:8000)
     - **Django Admin**: [http://localhost:8000/admin](http://localhost:8000/admin)
 
@@ -47,4 +52,9 @@ Ikuti langkah-langkah berikut di terminal:
 ## 📸 3. Screenshot Django Welcome Page
 ![Django Welcome](dokumentasi/image.png)
 
+## 4. API Dokumentasi
+![Api Dokumentasi](dokumentasi/apidokumentasi.png)
+
+## 5. Schemas
+![Schemas](dokumentasi/schemasdokumentasi.png)
 ---

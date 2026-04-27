@@ -2,4 +2,6 @@ Django>=5.0
 psycopg2-binary>=2.9
 python-dotenv>=1.0
 gunicorn>=21.2
-Pillow
+Pillow==10.2.0
+django-silk==5.0.3
+django-ninja==1.1
