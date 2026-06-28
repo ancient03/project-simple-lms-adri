@@ -66,6 +66,46 @@ class DetailCourseOut(CourseOut):
         ..., alias="coursecontent_set"
     )
 
+
+class CourseUpdate(Schema):
+    """Schema untuk partial update Course."""
+    name: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[int] = None
+
+
+# ==================== CourseContent Schemas ====================
+
+class ContentOut(Schema):
+    id: int
+    name: str
+    description: str
+    video_url: Optional[str]
+    course_id: int = Field(..., alias="course_id_id")
+
+class ContentUpdate(Schema):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    video_url: Optional[str] = None
+
+
+# ==================== V2 Schemas ====================
+
+class TeacherOutV2(Schema):
+    id: int
+    username: str
+    full_name: str
+
+class CourseOutV2(Schema):
+    id: int
+    name: str
+    description: str
+    price: int
+    teacher: TeacherOutV2
+    member_count: int
+    created_at: datetime
+
+
 # ==================== Enrollment Schemas ====================
 
 class EnrollmentIn(Schema):
