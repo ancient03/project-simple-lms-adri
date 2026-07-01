@@ -382,4 +382,8 @@ def uploadContentAttachment(request, id: int, file: UploadedFile = File(...)):
 # Daftarkan Router ke API Utama
 apiv1.add_router("/auth/", auth_router)
 apiv1.add_router("/enrollments/", enroll_router)
-apiv1.add_router("/contents/", content_router)
+apiv1.add_router('/contents', content_router)
+
+# Import dan tambahkan analytics router
+from analytics.api import analytics_router
+apiv1.add_router('/analytics', analytics_router)
