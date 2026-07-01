@@ -1,8 +1,10 @@
-# utils/redis_client.py
 import redis
 import json
+import os
 
-r = redis.Redis(host='redis', port=6379, db=0, decode_responses=True)
+_host = os.environ.get('REDIS_HOST', 'redis')
+_port = int(os.environ.get('REDIS_PORT', 6379))
+r = redis.Redis(host=_host, port=_port, db=0, decode_responses=True)
 
 
 def cache_course_detail(course_id, course_data, ttl=300):
