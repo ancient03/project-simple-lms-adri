@@ -11,6 +11,8 @@ from django.http import FileResponse
 from typing import List, Optional
 from datetime import datetime
 from django.db.models import Q, Count
+from django.core.cache import cache
+from utils.redis_client import update_course_popularity, get_top_courses
 
 
 class FlexibleAuth(SessionAuth):
@@ -67,6 +69,27 @@ class CourseFilter(FilterSchema):
         if value:
             return Q(created_at__gt=value)
         return Q()
+@apiv1.get('courses/popular/', response=List[dict])
+def popularCourses(request):
+    """
+    Menampilkan top 10 course terpopuler
+    berdasarkan jumlah enrollment.
+    """
+    top_courses_raw = get_top_courses(limit=10)
+    result = []
+    for key, score in top_courses_raw:
+        try:
+            course_id = int(key.split(':')[1])
+            course = Course.objects.get(pk=course_id)
+            result.append({
+                "id": course.id,
+                "name": course.name,
+                "score": int(score)
+            })
+        except (IndexError, ValueError, Course.DoesNotExist):
+            continue
+    return result
+
 
 
 @apiv1.get('courses/', response=List[CourseOut])
@@ -101,12 +124,40 @@ def listCourses(request, filters: CourseFilter = Query(...), ordering: str = '-c
 @apiv1.get('courses/{id}', response=DetailCourseOut)
 def detailCourse(request, id: int):
     """Mengambil detail course beserta daftar kontennya."""
+    cache_key = f"course_detail:{id}"
+    cached_course = cache.get(cache_key)
+    if cached_course:
+        return cached_course
+
     try:
-        return Course.objects.prefetch_related(
+        course = Course.objects.prefetch_related(
             'coursecontent_set'
         ).select_related('teacher').get(pk=id)
+        
+        cache.set(cache_key, course, 300) # TTL 5 menit
+        return course
     except Course.DoesNotExist:
         raise HttpError(404, "Course tidak ditemukan")
+@apiv1.post('courses/{id}/visit/', response={200: dict})
+def visitCourse(request, id: int):
+    """Mencatat course yang dikunjungi ke dalam session."""
+    get_object_or_404(Course, pk=id)
+    
+    visited = request.session.get('visited_courses', [])
+    if id not in visited:
+        visited.append(id)
+        request.session['visited_courses'] = visited
+        
+    return {"message": "Course berhasil dicatat di history kunjungan"}
+
+@apiv1.get('my-history/', response=List[CourseOut])
+def myHistory(request):
+    """Mengembalikan daftar course yang pernah dikunjungi dari session."""
+    visited_ids = request.session.get('visited_courses', [])
+    if not visited_ids:
+        return []
+        
+    return Course.objects.filter(pk__in=visited_ids).select_related('teacher')
 
 @apiv1.post('courses/', response={201: CourseOut})
 def createCourse(request, data: CourseIn):
@@ -131,6 +182,11 @@ def updateCourse(request, id: int, data: CourseUpdate):
     for attr, value in data.dict(exclude_unset=True).items():
         setattr(course, attr, value)
     course.save()
+
+    # Invalidasi cache
+    cache.delete(f"course_detail:{id}")
+    cache.delete("courses_list")
+
     return course
 
 @apiv1.delete('courses/{id}', response={204: None})
@@ -138,6 +194,11 @@ def deleteCourse(request, id: int):
     """Menghapus course."""
     course = get_object_or_404(Course, pk=id)
     course.delete()
+
+    # Invalidasi cache
+    cache.delete(f"course_detail:{id}")
+    cache.delete("courses_list")
+
     return 204, None
 
 
@@ -209,6 +270,10 @@ def enroll_course(request, data: EnrollmentIn):
         course_id=data.course_id,
         role='student'
     )
+
+    # Tambahkan score ke leaderboard
+    update_course_popularity(data.course_id, 1)
+
     return 201, enrollment
 
 @enroll_router.get("/my-courses", response=List[EnrollmentOut])

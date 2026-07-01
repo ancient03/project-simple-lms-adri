@@ -152,3 +152,22 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Allow multiple NinjaAPI instances (apiv1 + apiv2) to coexist without
 # triggering Ninja's global registry conflict check during tests.
 os.environ.setdefault("NINJA_SKIP_REGISTRY", "true")
+
+# Cache Configuration
+# Gunakan Redis jika tersedia, fallback ke LocMemCache untuk CI
+_REDIS_URL = os.environ.get('REDIS_URL', 'redis://redis:6379/1')
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": _REDIS_URL,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+        "KEY_PREFIX": "simple_lms",
+        "TIMEOUT": 300,
+    }
+}
+
+# Session Configuration
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"
