@@ -75,22 +75,25 @@ WSGI_APPLICATION = 'lms.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 # Konfigurasi database PostgreSQL
+# Nilai default cocok untuk Docker Compose; CI bisa override via env var
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'lms_db',
-        'USER': 'postgres',
-        'PASSWORD': 'postgres',
-        'HOST': 'database',
-        'PORT': '5432',
+        'NAME': os.environ.get('DB_NAME', 'lms_db'),
+        'USER': os.environ.get('DB_USER', 'postgres'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'postgres'),
+        'HOST': os.environ.get('DB_HOST', 'database'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
 
 # Caching Configuration
+# Gunakan Redis jika tersedia, fallback ke LocMemCache untuk CI
+_REDIS_URL = os.environ.get('REDIS_URL', 'redis://redis:6379/1')
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://redis:6379/1",
+        "LOCATION": _REDIS_URL,
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
