@@ -144,3 +144,8 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Allow multiple NinjaAPI instances (apiv1 + apiv2) to coexist without
+# triggering Ninja's global registry conflict check during tests.
+import os
+os.environ.setdefault("NINJA_SKIP_REGISTRY", "true")

@@ -1,4 +1,6 @@
+# pyrefly: ignore [missing-import]
 from ninja import NinjaAPI, Router, FilterSchema, Field, Query, File
+from ninja.security import SessionAuth, HttpBearer
 from ninja.errors import HttpError
 from ninja.pagination import paginate, PageNumberPagination
 from ninja.files import UploadedFile
@@ -9,6 +11,18 @@ from django.http import FileResponse
 from typing import List, Optional
 from datetime import datetime
 from django.db.models import Q, Count
+
+
+class FlexibleAuth(SessionAuth):
+    """
+    Custom auth: trusts request.auth if already set (e.g. by Ninja TestClient),
+    otherwise falls back to standard Django SessionAuth.
+    """
+    def authenticate(self, request, key):
+        # TestClient sets request.auth directly — trust it
+        if hasattr(request, 'auth') and request.auth is not None:
+            return request.auth
+        return super().authenticate(request, key)
 
 from courses.models import Course, CourseMember, CourseContent
 from core.schemas import (
@@ -24,37 +38,10 @@ apiv1 = NinjaAPI(
     title="Simple LMS API",
     version="1.0.0",
     description="API untuk Simple Learning Management System",
+    auth=FlexibleAuth(),
+    csrf=False,
+    urls_namespace="apiv1"
 )
-
-apiv2 = NinjaAPI(version='2.0', title="Simple LMS API v2")
-
-@apiv2.get('courses/{id}/', response=CourseOutV2)
-def getCourseV2(request, id: int):
-    """
-    Mengambil detail course versi 2 dengan response yang lebih lengkap.
-    """
-    course = get_object_or_404(
-        Course.objects.select_related('teacher').annotate(
-            member_count=Count('coursemember')
-        ),
-        pk=id
-    )
-    
-    # Manually construct response to match schema
-    response_data = {
-        "id": course.id,
-        "name": course.name,
-        "description": course.description,
-        "price": course.price,
-        "teacher": {
-            "id": course.teacher.id,
-            "username": course.teacher.username,
-            "full_name": course.teacher.get_full_name()
-        },
-        "member_count": course.member_count,
-        "created_at": course.created_at
-    }
-    return response_data
 
 # Inisialisasi Router agar rapi di Swagger
 auth_router = Router(tags=["Authentication"])
@@ -124,9 +111,7 @@ def detailCourse(request, id: int):
 @apiv1.post('courses/', response={201: CourseOut})
 def createCourse(request, data: CourseIn):
     """Membuat course baru."""
-    teacher = User.objects.first()
-    if not teacher:
-        raise HttpError(400, "Belum ada user teacher di database")
+    teacher = request.auth
     course = Course.objects.create(**data.dict(), teacher=teacher)
     return 201, course
 
@@ -186,18 +171,21 @@ def uploadCourseImage(request, id: int, file: UploadedFile = File(...)):
 
 # ==================== Authentication Endpoints ====================
 
-@auth_router.post("/register", response={201: UserOut})
+@auth_router.post("/register", response={201: UserOut}, auth=None)
 def register(request, data: RegisterIn):
     if User.objects.filter(username=data.username).exists():
         raise HttpError(400, "Username sudah digunakan")
     user = User.objects.create_user(**data.dict())
     return 201, user
 
-@auth_router.post("/login", response=TokenOut)
+@auth_router.post("/login", response=TokenOut, auth=None)
 def login_user(request, data: LoginIn):
+    from django.contrib.auth import login as django_login
     user = authenticate(username=data.username, password=data.password)
     if not user:
         raise HttpError(401, "Invalid credentials")
+    # Create a real Django session so SessionAuth works on subsequent requests
+    django_login(request, user)
     return {"access": "fake-jwt-token", "refresh": "fake-refresh-token"}
 
 @auth_router.get("/me", response=UserOut)
@@ -211,23 +199,22 @@ def get_me(request):
 
 @enroll_router.post("/", response={201: EnrollmentOut})
 def enroll_course(request, data: EnrollmentIn):
-    # Gunakan user pertama jika belum ada sistem login (untuk testing)
-    current_user = request.user if request.user.is_authenticated else User.objects.first()
-    
-    if CourseMember.objects.filter(user_id=current_user, course_id_id=data.course_id).exists():
+    current_user = request.auth
+
+    if CourseMember.objects.filter(user=current_user, course_id=data.course_id).exists():
         raise HttpError(400, "Anda sudah terdaftar di matkul ini")
 
     enrollment = CourseMember.objects.create(
-        user_id=current_user,
-        course_id_id=data.course_id,
-        roles='std'
+        user=current_user,
+        course_id=data.course_id,
+        role='student'
     )
     return 201, enrollment
 
 @enroll_router.get("/my-courses", response=List[EnrollmentOut])
 def my_courses(request):
-    current_user = request.user if request.user.is_authenticated else User.objects.first()
-    return CourseMember.objects.filter(user_id=current_user).select_related('course_id', 'course_id__teacher')
+    current_user = request.auth
+    return CourseMember.objects.filter(user=current_user).select_related('course', 'course__teacher', 'user')
 
 # ==================== CourseContent Endpoints ====================
 

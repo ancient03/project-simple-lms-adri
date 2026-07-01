@@ -5,12 +5,13 @@ from django.contrib.auth.models import User
 class Course(models.Model):
     name = models.CharField("nama matkul", max_length=100)
     description = models.TextField("deskripsi", default='-')
-    price = models.IntegerField("harga", default=10000)
+    price = models.IntegerField("harga", default=0)
     image = models.ImageField("gambar", null=True, blank=True)
     teacher = models.ForeignKey(
         User,
         verbose_name="pengajar",
-        on_delete=models.PROTECT
+        on_delete=models.PROTECT,
+        related_name='taught_courses'
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -21,38 +22,41 @@ class Course(models.Model):
     class Meta:
         verbose_name = "Mata Kuliah"
         verbose_name_plural = "Mata Kuliah"
+        ordering = ['-created_at']
 
 
 ROLE_OPTIONS = [
-    ('std', "Siswa"),
-    ('ast', "Asisten"),
+    ('student', "Siswa"),
+    ('assistant', "Asisten"),
+    ('teacher', "Pengajar"),
 ]
 
 
 class CourseMember(models.Model):
-    course_id = models.ForeignKey(
+    course = models.ForeignKey(
         Course,
         verbose_name="matkul",
-        on_delete=models.PROTECT
+        on_delete=models.CASCADE
     )
-    user_id = models.ForeignKey(
+    user = models.ForeignKey(
         User,
         verbose_name="siswa",
-        on_delete=models.PROTECT
+        on_delete=models.CASCADE
     )
-    roles = models.CharField(
+    role = models.CharField(
         "peran",
-        max_length=3,
+        max_length=10,
         choices=ROLE_OPTIONS,
-        default='std'
+        default='student'
     )
 
     def __str__(self):
-        return f"{self.user_id} - {self.course_id} ({self.roles})"
+        return f"{self.user.username} - {self.course.name} ({self.role})"
 
     class Meta:
         verbose_name = "Anggota Kelas"
         verbose_name_plural = "Anggota Kelas"
+        unique_together = ('course', 'user')
 
 
 class CourseContent(models.Model):

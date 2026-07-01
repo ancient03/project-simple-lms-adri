@@ -96,6 +96,11 @@ class TeacherOutV2(Schema):
     username: str
     full_name: str
 
+    @staticmethod
+    def resolve_full_name(obj):
+        full = f"{obj.first_name} {obj.last_name}".strip()
+        return full if full else obj.username
+
 class CourseOutV2(Schema):
     id: int
     name: str
@@ -115,9 +120,9 @@ class EnrollmentIn(Schema):
 class EnrollmentOut(Schema):
     """Schema untuk data pendaftaran (CourseMember)."""
     id: int
-    user_id: UserOut = Field(..., alias="user_id")
-    course_id: CourseOut = Field(..., alias="course_id")
-    roles: str
+    user: UserOut
+    course: CourseOut
+    role: str
 
 class ProgressIn(Schema):
     """Schema untuk update progres belajar."""

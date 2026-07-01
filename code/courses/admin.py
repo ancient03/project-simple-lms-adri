@@ -11,8 +11,8 @@ class CourseAdmin(admin.ModelAdmin):
 
 @admin.register(CourseMember)
 class CourseMemberAdmin(admin.ModelAdmin):
-    list_display = ('course_id', 'user_id', 'roles')
-    list_filter = ('roles',)
+    list_display = ('course', 'user', 'role')
+    list_filter = ('role',)
 
 @admin.register(CourseContent)
 class CourseContentAdmin(admin.ModelAdmin):

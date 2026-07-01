@@ -16,7 +16,8 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from core.apiv1 import apiv1, apiv2
+from core.apiv1 import apiv1
+from core.apiv2 import apiv2
 from django.conf import settings
 from django.conf.urls.static import static
 
