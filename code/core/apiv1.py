@@ -2,7 +2,6 @@ from ninja import NinjaAPI, Router, FilterSchema, Field, Query, File
 from ninja.errors import HttpError
 from ninja.pagination import paginate, PageNumberPagination
 from ninja.files import UploadedFile
-from ninja.throttling import AnonRateThrottle, AuthRateThrottle
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.shortcuts import get_object_or_404
@@ -20,17 +19,11 @@ from core.schemas import (
     EnrollmentIn, EnrollmentOut, ProgressIn
 )
 
-class AnonThrottle(AnonRateThrottle):
-    rate = "60/minute"
-
-class AuthThrottle(AuthRateThrottle):
-    rate = "60/minute"
 
 apiv1 = NinjaAPI(
     title="Simple LMS API",
     version="1.0.0",
     description="API untuk Simple Learning Management System",
-    throttle=[AnonThrottle(), AuthThrottle()]
 )
 
 apiv2 = NinjaAPI(version='2.0', title="Simple LMS API v2")

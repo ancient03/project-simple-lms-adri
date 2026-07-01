@@ -10,7 +10,7 @@ class Course(models.Model):
     teacher = models.ForeignKey(
         User,
         verbose_name="pengajar",
-        on_delete=models.RESTRICT
+        on_delete=models.PROTECT
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -33,12 +33,12 @@ class CourseMember(models.Model):
     course_id = models.ForeignKey(
         Course,
         verbose_name="matkul",
-        on_delete=models.RESTRICT
+        on_delete=models.PROTECT
     )
     user_id = models.ForeignKey(
         User,
         verbose_name="siswa",
-        on_delete=models.RESTRICT
+        on_delete=models.PROTECT
     )
     roles = models.CharField(
         "peran",
@@ -68,12 +68,12 @@ class CourseContent(models.Model):
     course_id = models.ForeignKey(
         Course,
         verbose_name="matkul",
-        on_delete=models.RESTRICT
+        on_delete=models.PROTECT
     )
     parent_id = models.ForeignKey(
         "self",
         verbose_name="induk",
-        on_delete=models.RESTRICT,
+        on_delete=models.PROTECT,
         null=True,
         blank=True
     )
