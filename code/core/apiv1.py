@@ -15,6 +15,17 @@ from django.core.cache import cache
 from utils.redis_client import update_course_popularity, get_top_courses
 
 
+import jwt
+from django.conf import settings
+
+class JWTAuth(HttpBearer):
+    def authenticate(self, request, token):
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
+            return User.objects.get(id=payload['user_id'])
+        except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, User.DoesNotExist):
+            return None
+
 class FlexibleAuth(SessionAuth):
     """
     Custom auth: trusts request.auth if already set (e.g. by Ninja TestClient),
@@ -26,13 +37,13 @@ class FlexibleAuth(SessionAuth):
             return request.auth
         return super().authenticate(request, key)
 
-from courses.models import Course, CourseMember, CourseContent
+from courses.models import Course, CourseMember, CourseContent, Progress
 from core.schemas import (
     CourseIn, CourseOut, DetailCourseOut, CourseUpdate,
     ContentOut, ContentUpdate,
     CourseOutV2, TeacherOutV2,
     RegisterIn, LoginIn, TokenOut, UserOut, UserUpdateIn,
-    EnrollmentIn, EnrollmentOut, ProgressIn
+    EnrollmentIn, EnrollmentOut, ProgressIn, ProgressOut
 )
 
 
@@ -40,7 +51,7 @@ apiv1 = NinjaAPI(
     title="Simple LMS API",
     version="1.0.0",
     description="API untuk Simple Learning Management System",
-    auth=FlexibleAuth(),
+    auth=[JWTAuth(), FlexibleAuth()],
     csrf=False,
     urls_namespace="apiv1"
 )
@@ -48,6 +59,12 @@ apiv1 = NinjaAPI(
 # Inisialisasi Router agar rapi di Swagger
 auth_router = Router(tags=["Authentication"])
 enroll_router = Router(tags=["Enrollments"])
+reports_router = Router(tags=["Reports"])
+content_router = Router(tags=["Course Content"])
+progress_router = Router(tags=["Progress"])
+
+from core.tasks import send_enrollment_notification, generate_course_report, send_welcome_email
+from celery.result import AsyncResult
 
 # ==================== Course Endpoints (Public/Main) ====================
 
@@ -174,9 +191,8 @@ def updateCourse(request, id: int, data: CourseUpdate):
     """
     course = get_object_or_404(Course, pk=id)
 
-    # TODO: Tambahkan validasi otorisasi untuk teacher
-    # if course.teacher != request.auth:
-    #     raise HttpError(403, "Hanya teacher pemilik course yang boleh mengupdate.")
+    if course.teacher != request.auth and not request.auth.is_superuser:
+        raise HttpError(403, "Hanya teacher pemilik course yang boleh mengupdate.")
 
     # Update hanya field yang dikirim (exclude_unset=True)
     for attr, value in data.dict(exclude_unset=True).items():
@@ -193,6 +209,10 @@ def updateCourse(request, id: int, data: CourseUpdate):
 def deleteCourse(request, id: int):
     """Menghapus course."""
     course = get_object_or_404(Course, pk=id)
+    
+    if course.teacher != request.auth and not request.auth.is_superuser:
+        raise HttpError(403, "Hanya teacher pemilik course yang boleh menghapus.")
+        
     course.delete()
 
     # Invalidasi cache
@@ -210,9 +230,8 @@ def uploadCourseImage(request, id: int, file: UploadedFile = File(...)):
     """
     course = get_object_or_404(Course, pk=id)
 
-    # TODO: Tambahkan validasi otorisasi untuk teacher
-    # if course.teacher != request.auth:
-    #     raise HttpError(403, "Hanya teacher pemilik course yang boleh mengupload gambar.")
+    if course.teacher != request.auth and not request.auth.is_superuser:
+        raise HttpError(403, "Hanya teacher pemilik course yang boleh mengupload.")
 
     # Validasi ukuran file (maks 2MB)
     if file.size > 2 * 1024 * 1024:
@@ -237,6 +256,10 @@ def register(request, data: RegisterIn):
     if User.objects.filter(username=data.username).exists():
         raise HttpError(400, "Username sudah digunakan")
     user = User.objects.create_user(**data.dict())
+    
+    # Latihan 1: Kirim email welcome secara background
+    send_welcome_email.delay(user.id)
+
     return 201, user
 
 @auth_router.post("/login", response=TokenOut, auth=None)
@@ -247,14 +270,63 @@ def login_user(request, data: LoginIn):
         raise HttpError(401, "Invalid credentials")
     # Create a real Django session so SessionAuth works on subsequent requests
     django_login(request, user)
-    return {"access": "fake-jwt-token", "refresh": "fake-refresh-token"}
+    
+    # Generate JWT
+    from datetime import timedelta
+    access_exp = datetime.utcnow() + timedelta(days=1)
+    refresh_exp = datetime.utcnow() + timedelta(days=7)
+    
+    access_token = jwt.encode({
+        'user_id': user.id,
+        'exp': access_exp,
+        'type': 'access'
+    }, settings.SECRET_KEY, algorithm='HS256')
+    
+    refresh_token = jwt.encode({
+        'user_id': user.id,
+        'exp': refresh_exp,
+        'type': 'refresh'
+    }, settings.SECRET_KEY, algorithm='HS256')
+    
+    return {"access": access_token, "refresh": refresh_token}
 
 @auth_router.get("/me", response=UserOut)
 def get_me(request):
-    if not request.user.is_authenticated:
+    if not request.auth:
         raise HttpError(401, "Silakan login terlebih dahulu")
-    return request.user
+    return request.auth
 
+# ==================== Progress Endpoints ====================
+
+@progress_router.get("/", response=List[ProgressOut])
+def list_progress(request):
+    """Mendapatkan daftar progress belajar user yang sedang login."""
+    return Progress.objects.filter(user=request.auth).select_related('content', 'user')
+
+@progress_router.post("/", response={200: ProgressOut, 201: ProgressOut})
+def update_progress(request, data: ProgressIn):
+    """Menandai lesson (CourseContent) telah selesai atau belum."""
+    content = get_object_or_404(CourseContent, pk=data.lesson_id)
+    
+    # Pastikan user terdaftar di course ini
+    if not CourseMember.objects.filter(course=content.course_id, user=request.auth).exists():
+        raise HttpError(403, "Anda tidak terdaftar di course ini.")
+        
+    progress, created = Progress.objects.get_or_create(
+        user=request.auth,
+        content=content,
+        defaults={
+            'is_completed': data.is_complete,
+            'completed_at': datetime.now() if data.is_complete else None
+        }
+    )
+    
+    if not created:
+        progress.is_completed = data.is_complete
+        progress.completed_at = datetime.now() if data.is_complete else None
+        progress.save()
+        
+    return (201 if created else 200), progress
 
 # ==================== Enrollment Endpoints ====================
 
@@ -273,6 +345,9 @@ def enroll_course(request, data: EnrollmentIn):
 
     # Tambahkan score ke leaderboard
     update_course_popularity(data.course_id, 1)
+
+    # Kirim email notifikasi di background (asynchronous)
+    send_enrollment_notification.delay(current_user.id, data.course_id)
 
     return 201, enrollment
 
@@ -382,8 +457,76 @@ def uploadContentAttachment(request, id: int, file: UploadedFile = File(...)):
 # Daftarkan Router ke API Utama
 apiv1.add_router("/auth/", auth_router)
 apiv1.add_router("/enrollments/", enroll_router)
-apiv1.add_router('/contents', content_router)
+apiv1.add_router('/contents/', content_router)
+apiv1.add_router('/reports/', reports_router)
+apiv1.add_router('/progress/', progress_router)
 
 # Import dan tambahkan analytics router
 from analytics.api import analytics_router
 apiv1.add_router('/analytics', analytics_router)
+
+# ==================== Reports Endpoints ====================
+
+@reports_router.post('/generate/{course_id}/')
+def generateReport(request, course_id: int):
+    """Trigger pembuatan report secara async."""
+    course = get_object_or_404(Course, pk=course_id)
+    task = generate_course_report.delay(course_id)
+
+    return {
+        "task_id": task.id,
+        "status": "processing",
+        "message": f"Report untuk course '{course.name}' sedang dibuat."
+    }
+
+@reports_router.get('/status/{task_id}/')
+def reportStatus(request, task_id: str):
+    """Cek status task report generation."""
+    result = AsyncResult(task_id)
+
+    response = {
+        "task_id": task_id,
+        "status": result.status,
+    }
+
+    if result.ready():
+        response["result"] = result.result
+    else:
+        response["message"] = "Task masih dalam proses..."
+
+    return response
+
+@reports_router.post('/generate-and-email/{course_id}/')
+def generateAndEmailReport(request, course_id: int):
+    """Trigger pembuatan report lalu kirim via email (Task Chaining)."""
+    from celery import chain
+    from core.tasks import send_email_with_report
+    
+    current_user = request.auth
+    course = get_object_or_404(Course, pk=course_id)
+    
+    # Task Chaining: output dari task pertama diteruskan sbg argumen pertama ke task kedua
+    workflow = chain(
+        generate_course_report.s(course_id),
+        send_email_with_report.s(current_user.email)
+    )
+    
+    task = workflow.apply_async()
+
+    return {
+        "task_id": task.id, # id dari task terakhir di chain
+        "status": "processing",
+        "message": f"Report untuk course '{course.name}' sedang dibuat dan akan dikirim ke {current_user.email}."
+    }
+
+@reports_router.post('/test-retry/')
+def testRetryMechanism(request):
+    """Simulasi retry mekanisme pada background task."""
+    from core.tasks import simulate_flaky_task
+    
+    task = simulate_flaky_task.delay()
+    
+    return {
+        "task_id": task.id,
+        "message": "Task retrying simulation started. Periksa console Celery Worker!"
+    }

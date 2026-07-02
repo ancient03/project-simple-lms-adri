@@ -174,3 +174,29 @@ CACHES = {
 # Session Configuration
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "default"
+
+# Celery Configuration
+CELERY_BROKER_URL = os.environ.get(
+    'CELERY_BROKER_URL', 'amqp://admin:password123@rabbitmq:5672//'
+)
+CELERY_RESULT_BACKEND = os.environ.get(
+    'CELERY_RESULT_BACKEND', 'redis://redis:6379/2'
+)
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Asia/Jakarta'
+
+from celery.schedules import crontab
+CELERY_BEAT_SCHEDULE = {
+    'daily-course-stats': {
+        'task': 'core.tasks.generate_daily_stats',
+        'schedule': crontab(hour=0, minute=0),
+        'args': (),
+    },
+    'cleanup-expired-data': {
+        'task': 'core.tasks.cleanup_expired_data',
+        'schedule': crontab(hour=2, minute=0),
+        'args': (),
+    },
+}

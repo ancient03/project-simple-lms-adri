@@ -58,10 +58,81 @@ services:
     networks:
       - lms-network
 
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: lms_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: password123
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lms-network
+
+  celery_worker:
+    build: .
+    container_name: lms_celery_worker
+    command: celery -A lms worker -l info
+    volumes:
+      - ./code:/app
+    depends_on:
+      app:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      - CELERY_BROKER_URL=amqp://admin:password123@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - DJANGO_SETTINGS_MODULE=lms.settings
+    networks:
+      - lms-network
+
+  celery_beat:
+    build: .
+    container_name: lms_celery_beat
+    command: celery -A lms beat -l info
+    volumes:
+      - ./code:/app
+    depends_on:
+      - celery_worker
+    environment:
+      - CELERY_BROKER_URL=amqp://admin:password123@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - DJANGO_SETTINGS_MODULE=lms.settings
+    networks:
+      - lms-network
+
+  flower:
+    build: .
+    container_name: lms_flower
+    command: celery -A lms flower --port=5555
+    ports:
+      - "5555:5555"
+    depends_on:
+      - celery_worker
+      - rabbitmq
+    environment:
+      - CELERY_BROKER_URL=amqp://admin:password123@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - DJANGO_SETTINGS_MODULE=lms.settings
+    networks:
+      - lms-network
+
 volumes:
   postgres_data:
   redis_data:
   mongo_data:
+  rabbitmq_data:
 
 networks:
   lms-network:

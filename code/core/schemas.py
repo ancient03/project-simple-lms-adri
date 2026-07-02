@@ -128,3 +128,10 @@ class ProgressIn(Schema):
     """Schema untuk update progres belajar."""
     lesson_id: int
     is_complete: bool = True
+
+class ProgressOut(Schema):
+    id: int
+    user: UserOut
+    content: ContentOut
+    is_completed: bool
+    completed_at: Optional[datetime]

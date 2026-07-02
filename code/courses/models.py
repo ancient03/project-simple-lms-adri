@@ -109,3 +109,25 @@ class Comment(models.Model):
     class Meta:
         verbose_name = "Komentar"
         verbose_name_plural = "Komentar"
+
+class Progress(models.Model):
+    user = models.ForeignKey(
+        User,
+        verbose_name="siswa",
+        on_delete=models.CASCADE
+    )
+    content = models.ForeignKey(
+        CourseContent,
+        verbose_name="konten",
+        on_delete=models.CASCADE
+    )
+    is_completed = models.BooleanField("selesai", default=False)
+    completed_at = models.DateTimeField("waktu selesai", null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.content.name} ({self.is_completed})"
+
+    class Meta:
+        verbose_name = "Progres Siswa"
+        verbose_name_plural = "Progres Siswa"
+        unique_together = ('user', 'content')

@@ -52,9 +52,26 @@ Ikuti langkah-langkah berikut di terminal:
 ## 📸 3. Screenshot Django Welcome Page
 ![Django Welcome](dokumentasi/image.png)
 
-## 4. API Dokumentasi
+## 4. Akun Demo & Endpoint Utama
+**Akun Demo:**
+| Role | Username | Password | Email |
+| :--- | :--- | :--- | :--- |
+| **Admin/Teacher** | admin | admin123 | admin@lms.com |
+| **Student** | student | student123 | student@lms.com |
+
+**Daftar Endpoint Utama:**
+- `POST /api/v1/auth/login` - Mendapatkan JWT (access & refresh token)
+- `POST /api/v1/auth/register` - Mendaftar pengguna baru
+- `GET /api/v1/courses/` - Mengambil daftar course dengan paginasi & filter
+- `POST /api/v1/courses/` - Membuat course baru (khusus Teacher)
+- `POST /api/v1/enrollments/` - Mendaftar (Enroll) ke course (khusus Student)
+- `POST /api/v1/progress/` - Menandai progress/lesson telah selesai
+
+Seluruh dokumentasi detail setiap endpoint dapat diakses melalui Swagger.
+
+## 5. API Dokumentasi
 ![Api Dokumentasi](dokumentasi/apidokumentasi.png)
 
-## 5. Schemas
+## 6. Schemas
 ![Schemas](dokumentasi/schemasdokumentasi.png)
 ---
