@@ -64,6 +64,7 @@ jobs:
           REDIS_HOST: localhost
           CELERY_BROKER_URL: redis://localhost:6379/0
           CELERY_RESULT_BACKEND: redis://localhost:6379/2
+          CELERY_TASK_ALWAYS_EAGER: True
         working-directory: code
         run: |
           coverage run manage.py test tests
