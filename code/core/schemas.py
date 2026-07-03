@@ -135,3 +135,56 @@ class ProgressOut(Schema):
     content: ContentOut
     is_completed: bool
     completed_at: Optional[datetime]
+from uuid import UUID
+
+class ChoiceIn(Schema):
+    text: str
+    is_correct: bool = False
+
+class QuestionIn(Schema):
+    text: str
+    marks: int = 1
+    choices: List[ChoiceIn]
+
+class QuizIn(Schema):
+    course_id: int
+    title: str
+    passing_grade: int = 70
+    attempt_limit: int = 3
+
+class ChoiceOut(Schema):
+    id: int
+    text: str
+
+class QuestionOut(Schema):
+    id: int
+    text: str
+    marks: int
+    choices: List[ChoiceOut]
+
+class QuizOut(Schema):
+    id: int
+    title: str
+    passing_grade: int
+    attempt_limit: int
+    questions: List[QuestionOut] = []
+
+class AnswerIn(Schema):
+    question_id: int
+    choice_id: int
+
+class SubmitQuizIn(Schema):
+    answers: List[AnswerIn]
+
+class QuizAttemptOut(Schema):
+    id: int
+    score: float
+    passed: bool
+    attempt_number: int
+    attempted_at: datetime
+
+class CertificateOut(Schema):
+    uuid: UUID
+    issued_at: datetime
+    course: CourseOut
+    user: UserOut

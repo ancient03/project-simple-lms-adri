@@ -131,3 +131,72 @@ class Progress(models.Model):
         verbose_name = "Progres Siswa"
         verbose_name_plural = "Progres Siswa"
         unique_together = ('user', 'content')
+
+import uuid
+
+class Quiz(models.Model):
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='quizzes', verbose_name='matkul')
+    title = models.CharField('judul kuis', max_length=200)
+    passing_grade = models.IntegerField('nilai KKM', default=70)
+    attempt_limit = models.IntegerField('batas percobaan', default=3)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f'{self.title} - {self.course.name}'
+
+    class Meta:
+        verbose_name = 'Kuis'
+        verbose_name_plural = 'Kuis'
+
+class Question(models.Model):
+    quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name='questions')
+    text = models.TextField('pertanyaan')
+    marks = models.IntegerField('bobot nilai', default=1)
+
+    def __str__(self):
+        return f'{self.quiz.title} - {self.text[:30]}'
+
+    class Meta:
+        verbose_name = 'Pertanyaan'
+        verbose_name_plural = 'Pertanyaan'
+
+class Choice(models.Model):
+    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='choices')
+    text = models.CharField('teks pilihan', max_length=255)
+    is_correct = models.BooleanField('benar', default=False)
+
+    def __str__(self):
+        return f'{self.question.text[:20]} - {self.text[:20]} (Correct: {self.is_correct})'
+
+    class Meta:
+        verbose_name = 'Pilihan Ganda'
+        verbose_name_plural = 'Pilihan Ganda'
+
+class QuizAttempt(models.Model):
+    quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name='attempts')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='quiz_attempts')
+    score = models.FloatField('skor', default=0)
+    passed = models.BooleanField('lulus', default=False)
+    attempt_number = models.IntegerField('percobaan ke', default=1)
+    attempted_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f'{self.user.username} - {self.quiz.title} (Skor: {self.score})'
+
+    class Meta:
+        verbose_name = 'Riwayat Kuis'
+        verbose_name_plural = 'Riwayat Kuis'
+
+class Certificate(models.Model):
+    uuid = models.UUIDField('ID Sertifikat', default=uuid.uuid4, editable=False, unique=True)
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='certificates')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='certificates')
+    issued_at = models.DateTimeField('tanggal terbit', auto_now_add=True)
+
+    def __str__(self):
+        return f'Sertifikat {self.uuid} - {self.user.username} - {self.course.name}'
+
+    class Meta:
+        verbose_name = 'Sertifikat'
+        verbose_name_plural = 'Sertifikat'
+        unique_together = ('course', 'user')

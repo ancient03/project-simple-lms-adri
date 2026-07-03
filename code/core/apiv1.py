@@ -530,3 +530,132 @@ def testRetryMechanism(request):
         "task_id": task.id,
         "message": "Task retrying simulation started. Periksa console Celery Worker!"
     }
+
+
+# ==================== Quiz Endpoints ====================
+
+from courses.models import Quiz, Question, Choice, QuizAttempt, Certificate
+from core.schemas import QuizIn, QuizOut, QuestionIn, SubmitQuizIn, QuizAttemptOut, CertificateOut
+
+quiz_router = Router(tags=['Quiz & Assessment'])
+cert_router = Router(tags=['Certificates'])
+
+@quiz_router.post('/', response={201: QuizOut})
+def create_quiz(request, data: QuizIn):
+    course = get_object_or_404(Course, pk=data.course_id)
+    if course.teacher != request.auth and not request.auth.is_superuser:
+        raise HttpError(403, 'Hanya teacher pemilik course yang boleh membuat kuis.')
+    
+    quiz = Quiz.objects.create(
+        course=course,
+        title=data.title,
+        passing_grade=data.passing_grade,
+        attempt_limit=data.attempt_limit
+    )
+    return 201, quiz
+
+@quiz_router.post('/{quiz_id}/questions/', response={201: dict})
+def add_question(request, quiz_id: int, data: QuestionIn):
+    quiz = get_object_or_404(Quiz, pk=quiz_id)
+    if quiz.course.teacher != request.auth and not request.auth.is_superuser:
+        raise HttpError(403, 'Hanya teacher pemilik course yang boleh menambah soal.')
+        
+    question = Question.objects.create(
+        quiz=quiz,
+        text=data.text,
+        marks=data.marks
+    )
+    
+    for c in data.choices:
+        Choice.objects.create(
+            question=question,
+            text=c.text,
+            is_correct=c.is_correct
+        )
+        
+    return 201, {'message': 'Soal dan pilihan ganda berhasil ditambahkan.'}
+
+@quiz_router.get('/{quiz_id}/', response=QuizOut)
+def get_quiz(request, quiz_id: int):
+    quiz = get_object_or_404(Quiz.objects.prefetch_related('questions__choices'), pk=quiz_id)
+    return quiz
+
+@quiz_router.post('/{quiz_id}/submit/', response=QuizAttemptOut)
+def submit_quiz(request, quiz_id: int, data: SubmitQuizIn):
+    quiz = get_object_or_404(Quiz.objects.prefetch_related('questions__choices'), pk=quiz_id)
+    user = request.auth
+    
+    # Cek attempt limit
+    attempts = QuizAttempt.objects.filter(quiz=quiz, user=user).count()
+    if attempts >= quiz.attempt_limit:
+        raise HttpError(400, f'Anda sudah mencapai batas maksimal percobaan ({quiz.attempt_limit} kali).')
+        
+    # Kalkulasi skor
+    total_marks = 0
+    earned_marks = 0
+    
+    # Mapping ID soal ke pilihan benar
+    question_dict = {}
+    for q in quiz.questions.all():
+        total_marks += q.marks
+        correct_choice = next((c for c in q.choices.all() if c.is_correct), None)
+        if correct_choice:
+            question_dict[q.id] = (correct_choice.id, q.marks)
+            
+    for ans in data.answers:
+        if ans.question_id in question_dict:
+            correct_id, marks = question_dict[ans.question_id]
+            if ans.choice_id == correct_id:
+                earned_marks += marks
+                
+    score_percentage = (earned_marks / total_marks * 100) if total_marks > 0 else 0
+    passed = score_percentage >= quiz.passing_grade
+    
+    attempt = QuizAttempt.objects.create(
+        quiz=quiz,
+        user=user,
+        score=score_percentage,
+        passed=passed,
+        attempt_number=attempts + 1
+    )
+    
+    return attempt
+
+# ==================== Certificate Endpoints ====================
+
+@cert_router.post('/generate/{course_id}/', response={201: CertificateOut, 200: CertificateOut})
+def generate_certificate(request, course_id: int):
+    course = get_object_or_404(Course, pk=course_id)
+    user = request.auth
+    
+    # 1. Pastikan user terdaftar
+    if not CourseMember.objects.filter(course=course, user=user).exists():
+        raise HttpError(403, 'Anda tidak terdaftar di course ini.')
+        
+    # 2. Cek apakah ada sertifikat yang sudah jadi
+    cert = Certificate.objects.filter(course=course, user=user).first()
+    if cert:
+        return 200, cert
+        
+    # 3. Validasi kelulusan (Apakah ada Quiz? Jika ada, harus punya attempt lulus)
+    quizzes = course.quizzes.all()
+    if quizzes.exists():
+        for q in quizzes:
+            has_passed = QuizAttempt.objects.filter(quiz=q, user=user, passed=True).exists()
+            if not has_passed:
+                raise HttpError(400, f'Anda belum lulus Kuis: {q.title}')
+                
+    # 4. Validasi Progress (Contoh sederhana: harus klik semua progress)
+    # (Opsional jika ingin ketat, untuk demo ini kita cukupkan kuis saja atau progress > 0)
+    
+    # Terbitkan sertifikat
+    cert = Certificate.objects.create(course=course, user=user)
+    return 201, cert
+
+@cert_router.get('/{uuid}/', response=CertificateOut, auth=None)
+def verify_certificate(request, uuid: str):
+    cert = get_object_or_404(Certificate.objects.select_related('course', 'user'), uuid=uuid)
+    return cert
+
+apiv1.add_router('/quizzes/', quiz_router)
+apiv1.add_router('/certificates/', cert_router)

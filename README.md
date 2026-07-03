@@ -66,8 +66,14 @@ Ikuti langkah-langkah berikut di terminal:
 - `POST /api/v1/courses/` - Membuat course baru (khusus Teacher)
 - `POST /api/v1/enrollments/` - Mendaftar (Enroll) ke course (khusus Student)
 - `POST /api/v1/progress/` - Menandai progress/lesson telah selesai
+- `POST /api/v1/quizzes/` - Membuat kuis & Limit Attempt (Teacher)
+- `POST /api/v1/quizzes/{id}/submit/` - Auto-Scoring / Menjawab kuis (Student)
+- `POST /api/v1/certificates/generate/{course_id}/` - Penerbitan sertifikat UUID kelulusan
 
-Seluruh dokumentasi detail setiap endpoint dapat diakses melalui Swagger.
+**Fitur Tambahan Ter-Implementasi:**
+- **Paket 3 (Assessment & Certificate)**: Sistem kuis pilihan ganda otomatis, attempt limit, passing grade, dan pencetakan UUID sertifikat kelulusan. Rincian selengkapnya dapat dibaca di **FINAL_PROJECT_REPORT.md**.
+
+Seluruh dokumentasi detail setiap endpoint dapat diakses melalui Swagger UI.
 
 ## 5. API Dokumentasi
 ![Api Dokumentasi](dokumentasi/apidokumentasi.png)

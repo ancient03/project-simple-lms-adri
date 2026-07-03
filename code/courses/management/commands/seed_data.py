@@ -260,7 +260,7 @@ class Command(BaseCommand):
         existing_count = CourseMember.objects.count()
         # Buat set pasangan (course_id, user_id) yang sudah ada untuk cek duplikat
         existing_pairs = set(
-            CourseMember.objects.values_list('course_id_id', 'user_id_id')
+            CourseMember.objects.values_list('course_id', 'user_id')
         )
 
         to_create = []
@@ -275,11 +275,11 @@ class Command(BaseCommand):
 
             if pair not in existing_pairs:
                 existing_pairs.add(pair)
-                role = 'ast' if random.random() < 0.1 else 'std'  # 10% asisten
+                role = 'assistant' if random.random() < 0.1 else 'student'  # 10% asisten
                 to_create.append(CourseMember(
-                    course_id=course,
-                    user_id=student,
-                    roles=role,
+                    course=course,
+                    user=student,
+                    role=role,
                 ))
 
         if to_create:
@@ -309,8 +309,8 @@ class Command(BaseCommand):
                     f'dalam konteks {course.name}. '
                     f'Pelajari konsep ini dengan seksama sebelum mengerjakan latihan.'
                 ),
-                course_id=course,
-                parent_id=None,  # Top-level content (tanpa induk)
+                course=course,
+                parent=None,  # Top-level content (tanpa induk)
             ))
 
         if to_create:
@@ -337,7 +337,7 @@ class Command(BaseCommand):
         # Ini menghindari query per komentar saat mencari member yang sesuai
         members_by_course = {}
         for member in members:
-            cid = member.course_id_id
+            cid = member.course_id
             if cid not in members_by_course:
                 members_by_course[cid] = []
             members_by_course[cid].append(member)
@@ -347,11 +347,11 @@ class Command(BaseCommand):
 
         for _ in range(target):
             content = random.choice(contents)
-            course_members = members_by_course.get(content.course_id_id, fallback_members)
+            course_members = members_by_course.get(content.course_id, fallback_members)
             member = random.choice(course_members)
             to_create.append(Comment(
-                content_id=content,
-                member_id=member,
+                content=content,
+                member=member,
                 comment=random.choice(COMMENTS),
             ))
 
