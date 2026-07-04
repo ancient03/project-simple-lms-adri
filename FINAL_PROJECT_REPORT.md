@@ -138,18 +138,29 @@ Proses *deployment* dikemas ringkas menggunakan docker:
 
 ![alt text](dokumentasi/enrollments.png)
 
-3. **[Screenshot 3: Teacher Membuat Kuis (RBAC)]**
-   - *Ganti token menggunakan akun `dosen10` (Instruktur).*
-   - *Tunjukkan request POST `/quizzes/` berhasil (HTTP 201) membuat Kuis Ujian Akhir untuk Course ID 1.*
-   - *Tunjukkan request POST `/quizzes/{id}/questions/` berhasil menambahkan pertanyaan.*
-4. **[Screenshot 4: Siswa Mengerjakan Kuis & Auto Scoring]**
-   - *Ganti token menggunakan akun `mhs001` (Siswa).*
-   - *Tunjukkan request GET `/quizzes/{id}`. Sorot bagian Response yang membuktikan bahwa field `is_correct` dari server berhasil DISAMARKAN/DIHILANGKAN agar siswa tidak curang.*
-   - *Tunjukkan request POST `/quizzes/{id}/submit/` dengan payload jawaban. Sorot hasil responsenya yang menunjukkan `score: 100`, dan `passed: True`.*
-5. **[Screenshot 5: Certificate Generation]**
-   - *Ganti token menggunakan akun `mhs001` (Siswa).*
-   - *Tunjukkan request POST `/certificates/generate/1/`.*
-   - *Sorot bagian responsenya yang berhasil memberikan kode ID Sertifikat unik berupa `UUID`.*
+3. **Teacher Membuat Kuis (RBAC)**
+
+![alt text](dokumentasi/dosenlogin.png)
+
+![alt text](dokumentasi/membuatquis.png)
+
+![alt text](dokumentasi/tambahpertanyaaan.png)
+
+4. **Siswa Mengerjakan Kuis & Auto Scoring**
+
+![alt text](dokumentasi/mahasiswalogin.png)
+
+![alt text](dokumentasi/getquis.png)
+
+Jika salah
+![alt text](dokumentasi/submitjikasalah.png)
+
+Jika benar
+![alt text](dokumentasi/submitjikabenar.png)
+
+5. **Certificate Generate**
+
+![alt text](dokumentasi/bikinsertifikat.png)
 
 ## 10. Kendala dan Solusi
 1. **Kendala Database Schema Mismatch:** Di pertengahan pengembangan, fitur *seeder* (`seed_data.py`) gagal dieksekusi karena ada ketidaksesuaian relasi *(ForeignKey mapping)* yang sebelumnya menggunakan `roles varchar(3)`. 
