@@ -54,52 +54,90 @@ Proses *deployment* dikemas ringkas menggunakan docker:
 | Student | `mhs001` | `password123` | Siswa pendaftar kursus & Kuis |
 
 ## 8. Endpoint
-Authentication
-1. `POST /api/v1/auth/login` - Login untuk mengambil Bearer JWT
-2. `POST /api/v1/auth/register` - Register untuk membuat akun baru
-3. `GET /api/v1/auth/me` - Mendapatkan informasi user
+### Authentication
+| Method | Endpoint | Deskripsi |
+|---|---|---|
+| `POST` | `/api/v1/auth/login` | Login untuk mengambil Bearer JWT |
+| `POST` | `/api/v1/auth/register` | Register untuk membuat akun baru |
+| `GET` | `/api/v1/auth/me` | Mendapatkan informasi user |
 
-Course
-1. `GET /api/v1/courses/` - Menampilkan daftar course 
-2. `GET /api/v1/courses/{id}` - Menampilkan detail course 
-3. `POST /api/v1/courses/` - Membuat course (Admin, Teacher)
-4. `PUT /api/v1/courses/{id}` - Mengupdate course (Admin, Teacher)
-5. `DELETE /api/v1/courses/{id}` - Menghapus course (Admin)
-6. `POST /api/v1/courses/{id}/visit` - Mencatat course yang dikunjungi ke dalam session.
-7. `GET /api/v1/my-history/` - Menampilkan daftar course yang pernah dikunjungi dari session
-8. `POST /api/v1/courses/{id}/upload-image/` - Upload gambar course (Admin, Teacher)
-9. `GET /api/v1/courses/popular/` - Menampilkan daftar course terpopuler
+### Course
+| Method | Endpoint | Deskripsi |
+|---|---|---|
+| `GET` | `/api/v1/courses/` | Menampilkan daftar course |
+| `GET` | `/api/v1/courses/{id}` | Menampilkan detail course |
+| `POST` | `/api/v1/courses/` | Membuat course (Admin, Teacher) |
+| `PUT` | `/api/v1/courses/{id}` | Mengupdate course (Admin, Teacher) |
+| `DELETE` | `/api/v1/courses/{id}` | Menghapus course (Admin) |
+| `POST` | `/api/v1/courses/{id}/visit` | Mencatat course yang dikunjungi ke dalam session. |
+| `GET` | `/api/v1/my-history/` | Menampilkan daftar course yang pernah dikunjungi dari session |
+| `POST` | `/api/v1/courses/{id}/upload-image/` | Upload gambar course (Admin, Teacher) |
+| `GET` | `/api/v1/courses/popular/` | Menampilkan daftar course terpopuler |
 
-Enrollments
-1. `POST /api/v1/enrollments/` - Mendaftarkan siswa ke dalam course (Student)
-2. `GET /api/v1/enrollments/my-courses` - Menampilkan daftar course yang terdaftar
+### Enrollments
+| Method | Endpoint | Deskripsi |
+|---|---|---|
+| `POST` | `/api/v1/enrollments/` | Mendaftarkan siswa ke dalam course (Student) |
+| `GET` | `/api/v1/enrollments/my-courses` | Menampilkan daftar course yang terdaftar |
 
-Course Contents
-1. `GET /api/v1/contents/` - Menampilkan daftar konten dengan filtering, sorting, dan pagination.
-2. `PATCH /api/v1/contents/{id}/` - Partial update course contents.
-3. `GET /api/v1/contents/{id}/download/` - Download course contents.
-4. `POST /api/v1/contents/{id}/upload-attachment/` - Upload course contents.
+### Course Contents
+| Method | Endpoint | Deskripsi |
+|---|---|---|
+| `GET` | `/api/v1/contents/` | Menampilkan daftar konten dengan filtering, sorting, dan pagination. |
+| `PATCH` | `/api/v1/contents/{id}/` | Partial update course contents. |
+| `GET` | `/api/v1/contents/{id}/download/` | Download course contents. |
+| `POST` | `/api/v1/contents/{id}/upload-attachment/` | Upload course contents. |
 
-Reports
-1. `POST /api/v1/reports/generate/{course_id}/` - Generate report
-2.
+### Reports
+| Method | Endpoint | Deskripsi |
+|---|---|---|
+| `POST` | `/api/v1/reports/generate/{course_id}/` | Generate report |
+| `GET` | `/api/v1/reports/status/{task_id}/` | Cek status report |
+
+### Progress
+| Method | Endpoint | Deskripsi |
+|---|---|---|
+| `GET` | `/api/v1/progress/` | Mendapatkan daftar progress belajar user. |
+| `POST` | `/api/v1/progress/` | Menandai lesson (CourseContent) telah selesai atau belum. |
+
+### Analytics
+| Method | Endpoint | Deskripsi |
+|---|---|---|
+| `POST` | `/api/v1/analytics/log/` | Mencatat aktivitas user ke MongoDB. |
+| `GET` | `/api/v1/analytics/popular-courses/` | Mengambil daftar course terpopuler berdasarkan views. |
+| `GET` | `/api/v1/analytics/my-activity/` | Mengambil ringkasan aktivitas user yang sedang login. |
+| `GET` | `/api/v1/analytics/daily-summary/` | Mengambil ringkasan aktivitas harian. |
+| `GET` | `/api/v1/analytics/top-users/` | Mengambil user paling aktif. |
 
 
-1. `POST /api/v1/quizzes/` - Membuat kuis (Teacher)
-2. `POST /api/v1/quizzes/{id}/questions/` - Menambah soal kuis (Teacher)
-3. `POST /api/v1/quizzes/{id}/submit/` - Menjawab kuis dengan *auto-scoring* (Student)
-4. `POST /api/v1/certificates/generate/{course_id}/` - Mengecek kelulusan dan menerbitkan sertifikat (Student).
 
-## 9. Screenshot / Bukti Pengujian
-*(Catatan: Ambillah screenshot dari hasil percobaan di komputermu sendiri untuk membuktikan aplikasi berjalan dengan baik. Gunakan aplikasi Postman atau Swagger UI di `http://localhost:8000/api/v1/docs`)*
+### Quiz 
+| Method | Endpoint | Deskripsi |
+|---|---|---|
+| `POST` | `/api/v1/quizzes/` | Membuat kuis (Teacher) |
+| `POST` | `/api/v1/quizzes/{id}/questions/` | Menambah soal kuis (Teacher) |
+| `GET` |  `/api/v1/quizzes/{quiz_id}/` | Menampilkan detail kuis |
+| `POST` | `/api/v1/quizzes/{id}/submit/` | Menjawab kuis dengan *auto-scoring* (Student) |
 
-**Daftar Gambar yang Harus Dilampirkan (Ganti tautan di bawah dengan gambar Anda):**
-1. **[Screenshot 1: Auth JWT]**
-   - *Tunjukkan request POST `/auth/login` menggunakan akun `mhs001`.*
-   - *Tunjukkan response berhasil memproduksi `access_token`.*
-2. **[Screenshot 2: Course & Enrollment API]**
-   - *Tunjukkan request GET `/courses/` yang berhasil menampilkan daftar kelas.*
-   - *Tunjukkan request POST `/enrollments/` dengan mengirim `course_id: 1` (Sukses mendaftar).*
+### Sertifikat
+| Method | Endpoint | Deskripsi |
+|---|---|---|
+| `POST` | `/api/v1/certificates/generate/{course_id}/` | Mengecek kelulusan dan menerbitkan sertifikat (Student). |
+| `GET` | `/api/v1/certificates/{uuid}/` | Menampilkan Sertifikat yang ada|
+
+## 9. Screenshot / Bukti Pengujian 
+ (Menggunakan Postman)
+
+1. **Login  &  Auth JWT**
+
+![alt text](dokumentasi/loginjwt.png)
+
+2. **Course & Enrollment API**
+
+![alt text](dokumentasi/courselist.png)
+
+![alt text](dokumentasi/enrollments.png)
+
 3. **[Screenshot 3: Teacher Membuat Kuis (RBAC)]**
    - *Ganti token menggunakan akun `dosen10` (Instruktur).*
    - *Tunjukkan request POST `/quizzes/` berhasil (HTTP 201) membuat Kuis Ujian Akhir untuk Course ID 1.*
